@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laboratorio de Señales</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Nunito+Sans:opsz,wght@6..12,400;6..12,700;6..12,800&display=swap">
+<style>
+/* Layout: a microscope "slide" — colored level track on top, an 800x480 cell scene (outside / bilayer / cytoplasm) you play on, toast, controls. */
+:root{
+  --bg1:#EEF9F0; --bg2:#E3F5EE; --card:#FFFFFF; --ink:#173A2D; --text:#1F332B; --muted:#5B7A6C; --line:#CDE5D7;
+  --accent:#E46A4F; --ok:#1E9E5A; --warn:#D9971C; --violet:#12806A; --blue:#2A9D8F; --teal:#33BF9C; --pink:#86C440; --gold:#F2C14E;
+  --ecm1:#D8F1E6; --ecm2:#F1FAF5; --cyto1:#E6F5DB; --cyto2:#F5FAE6; --head1:#6FBF82; --head2:#B3D96C; --tail:#E2EEC4;
+  --blood:#F5DAD2; --rbc:#D4544C; --nuc:#B5DFC6; --mito:#A9D98B; --er:#86CBA9;
+  --t-ok:#DAF3E4; --t-bad:#FBE3DC; --t-warn:#FAF0D3; --night:#D1E6E1;
+  --f-display:"Kalam","Segoe Print",cursive; --f-body:"Nunito Sans","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg1:#0D1E19; --bg2:#0A1A1E; --card:#142E27; --ink:#E1F4EA; --text:#DAEEE3; --muted:#9ABCAD; --line:#2A5144;
+  --accent:#FF8B70; --ok:#4BD58A; --warn:#F1B84A; --violet:#4ED0A7; --blue:#4EC2B7; --teal:#6EDFBF; --pink:#A5DB5A; --gold:#F6D368;
+  --ecm1:#113831; --ecm2:#15423A; --cyto1:#1C3823; --cyto2:#203A29; --head1:#3E985A; --head2:#7EA744; --tail:#3B4E32;
+  --blood:#482424; --rbc:#E66F69; --nuc:#2E6A51; --mito:#4D893A; --er:#398B6D;
+  --t-ok:#163E2B; --t-bad:#482521; --t-warn:#42381A; --night:#1D3943; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg1:#0D1E19; --bg2:#0A1A1E; --card:#142E27; --ink:#E1F4EA; --text:#DAEEE3; --muted:#9ABCAD; --line:#2A5144;
+  --accent:#FF8B70; --ok:#4BD58A; --warn:#F1B84A; --violet:#4ED0A7; --blue:#4EC2B7; --teal:#6EDFBF; --pink:#A5DB5A; --gold:#F6D368;
+  --ecm1:#113831; --ecm2:#15423A; --cyto1:#1C3823; --cyto2:#203A29; --head1:#3E985A; --head2:#7EA744; --tail:#3B4E32;
+  --blood:#482424; --rbc:#E66F69; --nuc:#2E6A51; --mito:#4D893A; --er:#398B6D;
+  --t-ok:#163E2B; --t-bad:#482521; --t-warn:#42381A; --night:#1D3943; color-scheme:dark }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{min-height:100vh;color:var(--text);font-family:var(--f-body);font-size:16px;line-height:1.45;
+  background:radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--pink) 18%, transparent) 0 120px, transparent 260px),
+             radial-gradient(circle at 92% 85%, color-mix(in srgb, var(--teal) 18%, transparent) 0 140px, transparent 300px),
+             linear-gradient(160deg, var(--bg1), var(--bg2));
+  background-attachment:fixed;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 32px}
+.wrap{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--f-display);color:var(--ink);font-size:clamp(1.8rem,5vw,2.6rem);line-height:1;margin:0}
+h1 span{background:linear-gradient(90deg,var(--violet),var(--pink),var(--warn));-webkit-background-clip:text;background-clip:text;color:transparent}
+.navrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.track{display:flex;gap:6px}
+.dot{width:36px;height:36px;border-radius:50%;border:3px solid var(--c);display:grid;place-items:center;font:inherit;font-weight:800;color:var(--ink);background:var(--card);cursor:pointer;padding:0;transition:transform .15s}
+.dot:hover{transform:scale(1.1)} .dot.now{background:var(--c);color:#fff;box-shadow:0 0 0 4px color-mix(in srgb, var(--c) 30%, transparent)}
+.dot.done{background:color-mix(in srgb, var(--c) 25%, var(--card))}
+.skip{border:2px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-weight:800;font-size:.9rem;cursor:pointer}
+.skip:hover{border-color:var(--violet);color:var(--violet)}
+.pts{font-family:var(--f-display);font-size:1.6rem;font-variant-numeric:tabular-nums;color:#fff;background:linear-gradient(90deg,var(--violet),var(--pink));padding:2px 14px;border-radius:999px}
+.bench{background:var(--card);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0;
+  border:3px solid transparent;background-image:linear-gradient(var(--card),var(--card)),linear-gradient(120deg,var(--violet),var(--pink),var(--warn),var(--teal));
+  background-origin:border-box;background-clip:padding-box,border-box;box-shadow:0 10px 30px color-mix(in srgb, var(--violet) 18%, transparent)}
+.goal{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.goal h2{font-family:var(--f-display);font-size:1.6rem;color:var(--ink);margin:0;line-height:1.1}
+.goal p{margin:0;color:var(--muted);font-weight:700}
+#stage{width:100%;height:auto;display:block;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:14px;overflow:hidden}
+#stage text{font-family:var(--f-body);font-weight:800;fill:var(--ink);pointer-events:none}
+.deco{pointer-events:none}
+.drag{cursor:grab} .drag.lift{cursor:grabbing;filter:drop-shadow(0 8px 8px rgba(0,0,0,.25))}
+.drag.sel{filter:drop-shadow(0 0 8px var(--pink))}
+.tap{cursor:pointer}
+.toast{min-height:2.6em;border-radius:12px;padding:8px 12px;font-weight:700;background:var(--t-warn);color:var(--text);display:flex;align-items:center;border-left:6px solid var(--warn)}
+.toast.ok{background:var(--t-ok);border-color:var(--ok)} .toast.no{background:var(--t-bad);border-color:var(--accent)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{font:inherit;cursor:pointer}
+.btn{border:2px solid var(--line);background:var(--card);color:var(--text);border-radius:14px;padding:10px 16px;font-weight:800;font-size:1.05rem}
+.btn:hover:not(:disabled){border-color:var(--violet)} .btn:disabled{opacity:.45;cursor:default}
+.btn.on{background:var(--night)}
+.primary{background:linear-gradient(90deg,var(--violet),var(--pink));color:#fff;border-color:transparent;box-shadow:0 6px 16px color-mix(in srgb, var(--pink) 35%, transparent)}
+.primary:hover:not(:disabled){filter:brightness(1.08)}
+.big{font-size:1.25rem;padding:14px 22px}
+:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.card-zone{position:relative;height:340px;display:grid;place-items:center;overflow:hidden;border-radius:14px;background:linear-gradient(180deg,var(--ecm1),var(--cyto1))}
+.mcard{width:min(340px,92%);height:290px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:18px;text-align:center;touch-action:none;cursor:grab;position:absolute;transition:transform .25s ease;color:#173A2D;box-shadow:0 12px 26px rgba(0,0,0,.18)}
+.mcard .art{font-size:4.2rem;line-height:1}
+.mcard .say{font-family:var(--f-display);font-size:1.5rem;line-height:1.2}
+.mcard .badge{position:absolute;top:14px;font-weight:800;padding:4px 10px;border-radius:8px;opacity:0;border:3px solid;background:#fff}
+.mcard .b-myth{left:14px;color:#E03131;border-color:#E03131;transform:rotate(-10deg)}
+.mcard .b-real{right:14px;color:#0CA678;border-color:#0CA678;transform:rotate(10deg)}
+.card-zone .side{position:absolute;top:50%;transform:translateY(-50%);font-weight:800;font-size:1rem;padding:8px 10px;border-radius:12px;background:var(--card);opacity:.85}
+.card-zone .sideL{left:10px;color:var(--accent);border:2px solid var(--accent)} .card-zone .sideR{right:10px;color:var(--ok);border:2px solid var(--ok)}
+.card-zone .cnt{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-weight:800;color:var(--muted);font-size:.9rem}
+#deck{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none} #deck .mcard{pointer-events:auto}
+@media (max-width:560px){ .card-zone .side{top:10px;transform:none;font-size:.8rem;padding:5px 8px} .card-zone .cnt{top:auto;bottom:8px} .mcard{width:min(280px,78%);height:250px;padding:14px} .mcard .art{font-size:3.2rem} .mcard .say{font-size:1.3rem} }
+.rotate{display:none;align-items:center;gap:8px;font-weight:800;color:var(--violet);background:color-mix(in srgb, var(--violet) 12%, var(--card));border-radius:12px;padding:8px 12px}
+@media (max-width:600px) and (orientation:portrait){ .rotate{display:flex} }
+.end{display:flex;flex-direction:column;gap:12px;align-items:center;text-align:center;padding:10px}
+.end .score{font-family:var(--f-display);font-size:3.6rem;line-height:1;background:linear-gradient(90deg,var(--violet),var(--pink),var(--warn));-webkit-background-clip:text;background-clip:text;color:transparent}
+.end .rank{font-family:var(--f-display);font-size:1.7rem;color:var(--ink)}
+.end .idea{font-family:var(--f-display);font-size:1.3rem;color:var(--ink);background:var(--t-ok);border:2px solid var(--ok);border-radius:16px;padding:12px 16px;max-width:560px}
+.foot{font-size:.8rem;color:var(--muted);margin:0}
+@media (max-width:560px){ .pts{font-size:1.3rem} .top{gap:8px} .dot{width:32px;height:32px} }
+@media (prefers-reduced-motion:reduce){ .mcard,.dot{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Laboratorio de <span>señales</span></h1>
+    <div class="navrow"><div class="track" id="track" aria-label="Ir a un nivel"></div><button class="skip" id="skip">⏭ Saltar nivel</button></div>
+    <div class="pts" id="pts" aria-live="polite">0 pts</div>
+  </div>
+  <section class="bench">
+    <div class="goal"><h2 id="ltitle"></h2><p id="lgoal"></p></div>
+    <div class="rotate" role="note">📱↻ Gira el celular para ver la célula más grande</div>
+    <div id="view"></div>
+    <div class="toast" id="toast" aria-live="polite"></div>
+    <div class="controls" id="controls"></div>
+  </section>
+</div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = id => document.getElementById(id);
+let score = 0, levelIdx = -1, cleanups = [], sel = null, stage = null;
+let lvl = [0, 0, 0, 0, 0];            // points per level, so replaying a level never double-counts
+const doneSet = new Set();
+const PALETTE = ["--violet", "--pink", "--teal", "--gold", "--blue", "--ok", "--warn"];
+
+/* ---------- tiny SVG toolkit ---------- */
+function E(tag, a = {}, parent){ const n = document.createElementNS(NS, tag); for(const k in a) n.setAttribute(k, a[k]); if(parent) parent.appendChild(n); return n; }
+function Tf(txt, x, y, parent, size = 15, anchor = "middle", style = ""){ const t = E("text", {x, y, "font-size": size, "text-anchor": anchor, style}, parent); t.textContent = txt; return t; }
+// labels grow on narrow screens because the 800-wide scene is shrunk to fit a phone
+const TS = () => innerWidth < 640 ? Math.min(1.6, 640 / Math.max(320, innerWidth)) : 1;
+function T(txt, x, y, parent, size = 15, anchor = "middle", style = ""){ return Tf(txt, x, y, parent, +(size * TS()).toFixed(1), anchor, style); }
+const ease = k => 1 - Math.pow(1 - k, 3);
+function tween(ms, fn, done){ if(RM){ fn(1); done && done(); return; } const t0 = performance.now(); let alive = true; cleanups.push(() => alive = false);
+  (function f(t){ if(!alive) return; const k = Math.min(1, (t - t0) / ms); fn(ease(k)); if(k < 1) requestAnimationFrame(f); else done && done(); })(t0); }
+const place = (g, x, y, s = 1, r = 0) => g.setAttribute("transform", `translate(${x},${y}) rotate(${r}) scale(${s})`);
+function moveTo(g, x0, y0, x1, y1, ms, done){ tween(ms, k => place(g, x0 + (x1 - x0) * k, y0 + (y1 - y0) * k), done); }
+const later = (ms, fn) => { const id = setTimeout(fn, RM ? 0 : ms); cleanups.push(() => clearTimeout(id)); };
+function loop(fn){ let alive = true; cleanups.push(() => alive = false); const t0 = performance.now(); (function f(t){ if(!alive) return; if(!RM) fn(t - t0); requestAnimationFrame(f); })(t0); }
+function svgP(e){ const p = stage.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(stage.getScreenCTM().inverse()); }
+const near = (x, y, tx, ty, r) => Math.hypot(x - tx, y - ty) <= r;
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+/* drag with tap-to-select fallback: tap a piece, then tap where it goes */
+function draggable(g, home, tryDrop){
+  g.classList.add("drag"); place(g, home.x, home.y);
+  let st = null;
+  g.addEventListener("pointerdown", e => { if(g.dataset.locked) return; e.preventDefault(); e.stopPropagation(); g.parentNode.appendChild(g); g.setPointerCapture(e.pointerId);
+    const p = svgP(e); st = {x0: p.x, y0: p.y, x: home.x, y: home.y, moved: false}; g.classList.add("lift"); });
+  g.addEventListener("pointermove", e => { if(!st) return; const p = svgP(e), dx = p.x - st.x0, dy = p.y - st.y0;
+    if(Math.abs(dx) + Math.abs(dy) > 6) st.moved = true; st.x = home.x + dx; st.y = home.y + dy; place(g, st.x, st.y, 1.08); });
+  const end = () => { if(!st) return; g.classList.remove("lift"); const s = st; st = null;
+    if(!s.moved){ place(g, home.x, home.y); if(sel) sel.g.classList.remove("sel"); sel = {g, home, tryDrop}; g.classList.add("sel"); return; }
+    if(!tryDrop(s.x, s.y)) moveTo(g, s.x, s.y, home.x, home.y, 260); };
+  g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
+}
+function stageTapForSelection(e){ if(!sel || e.target.closest(".drag")) return; const p = svgP(e), s = sel; sel = null; s.g.classList.remove("sel"); s.tryDrop(p.x, p.y); }
+
+/* ---------- cell scenery ---------- */
+function defs(){
+  const d = E("defs", {}, stage);
+  const lin = (id, a, b) => { const g = E("linearGradient", {id, x1:0, y1:0, x2:0, y2:1}, d); E("stop", {offset:"0%", style:`stop-color:var(${a})`}, g); E("stop", {offset:"100%", style:`stop-color:var(${b})`}, g); };
+  lin("g-ecm", "--ecm1", "--ecm2"); lin("g-cyto", "--cyto1", "--cyto2");
+  const r = (id, a, b) => { const g = E("radialGradient", {id, cx:"40%", cy:"35%", r:"70%"}, d); E("stop", {offset:"0%", style:`stop-color:var(${a})`}, g); E("stop", {offset:"100%", style:`stop-color:var(${b})`}, g); };
+  r("g-fat", "--gold", "--warn"); r("g-nuc", "--nuc", "--violet"); r("g-mito", "--mito", "--accent");
+}
+function membrane(y, h = 34, x0 = 0, x1 = 800){
+  const g = E("g", {class:"deco"}, stage);
+  E("rect", {x:x0, y:y + 6, width:x1 - x0, height:h - 12, style:"fill:var(--tail);opacity:.55"}, g);
+  for(let x = x0 + 6, i = 0; x < x1; x += 12, i++){
+    const c = i % 2 ? "var(--head1)" : "var(--head2)";
+    E("path", {d:`M${x - 2} ${y + 9} L${x - 2} ${y + h / 2 - 1} M${x + 2} ${y + 9} L${x + 2} ${y + h / 2 - 1} M${x - 2} ${y + h - 9} L${x - 2} ${y + h / 2 + 1} M${x + 2} ${y + h - 9} L${x + 2} ${y + h / 2 + 1}`, style:"stroke:var(--warn);stroke-width:1.2;opacity:.55"}, g);
+    E("circle", {cx:x, cy:y + 5, r:5.5, style:`fill:${c}`}, g); E("circle", {cx:x, cy:y + h - 5, r:5.5, style:`fill:${c}`}, g);
+  }
+  return g;
+}
+function organelles(where){   // decorative organelles in the cytoplasm
+  const g = E("g", {class:"deco", opacity:.55}, stage);
+  if(where.nucleus){ const [x, y, r] = where.nucleus; E("circle", {cx:x, cy:y, r, style:"fill:url(#g-nuc);stroke:var(--violet);stroke-width:3"}, g); E("circle", {cx:x + r * .25, cy:y - r * .3, r:r * .22, style:"fill:var(--violet);opacity:.6"}, g);
+    for(let i = 0; i < 3; i++) E("path", {d:`M${x + r + 8 + i * 12} ${y - r * .8} q 18 ${r * .4} 0 ${r * .8} q -18 ${r * .4} 0 ${r * .8}`, style:"fill:none;stroke:var(--er);stroke-width:5;stroke-linecap:round"}, g); }
+  (where.mitos || []).forEach(([x, y, rot]) => { const m = E("g", {transform:`translate(${x},${y}) rotate(${rot})`}, g);
+    E("ellipse", {rx:34, ry:17, style:"fill:url(#g-mito);stroke:var(--accent);stroke-width:2"}, m);
+    E("path", {d:"M-26 0 q6 -12 12 0 q6 12 12 0 q6 -12 12 0 q6 12 12 0", style:"fill:none;stroke:var(--accent);stroke-width:2"}, m); });
+  (where.ribos || []).forEach(([x, y]) => E("circle", {cx:x, cy:y, r:3.5, style:"fill:var(--violet);opacity:.7"}, g));
+  (where.vesicles || []).forEach(([x, y, r]) => E("circle", {cx:x, cy:y, r, style:"fill:none;stroke:var(--teal);stroke-width:2.5"}, g));
+  return g;
+}
+function floaters(y0, y1, n = 10){   // drifting molecules outside the cell
+  const g = E("g", {class:"deco"}, stage); const items = [];
+  for(let i = 0; i < n; i++){ const c = E("circle", {r:rnd(2.5, 5), style:`fill:var(${PALETTE[i % PALETTE.length]});opacity:.55`}, g); items.push({c, x:rnd(0, 800), y:rnd(y0, y1), s:rnd(.15, .45), ph:rnd(0, 6)}); }
+  loop(t => items.forEach(o => { o.x = (o.x + o.s) % 820; o.c.setAttribute("cx", o.x - 10); o.c.setAttribute("cy", o.y + Math.sin(t / 900 + o.ph) * 6); }));
+  items.forEach(o => { o.c.setAttribute("cx", o.x); o.c.setAttribute("cy", o.y); });
+}
+function scene(memY, memH = 34, cyto = {}){
+  defs();
+  E("rect", {x:0, y:0, width:800, height:memY + 6, style:"fill:url(#g-ecm)"}, stage);
+  E("rect", {x:0, y:memY + memH - 6, width:800, height:480 - memY - memH + 6, style:"fill:url(#g-cyto)"}, stage);
+  organelles(cyto); floaters(10, memY - 10, 12); membrane(memY, memH);
+}
+function burst(x, y, n = 14){
+  for(let i = 0; i < n; i++){ const a = rnd(0, Math.PI * 2), d = rnd(40, 95), col = PALETTE[i % PALETTE.length];
+    const s = i % 3 === 0 ? E("polygon", {points:"0,-7 6,-3.5 6,3.5 0,7 -6,3.5 -6,-3.5", style:`fill:var(${col})`}, stage) : E("circle", {r:rnd(3, 6), style:`fill:var(${col})`}, stage);
+    s.classList.add("deco"); tween(700, k => { place(s, x + Math.cos(a) * d * k, y + Math.sin(a) * d * k, 1 - k * .6); s.setAttribute("opacity", 1 - k); }, () => s.remove()); }
+}
+
+/* ---------- figures (drawn around 0,0) ---------- */
+const F = {
+  glp1(g){ [[-30,4],[-15,-5],[0,4],[15,-5],[30,4]].forEach(([x,y], i) => E("circle", {cx:x, cy:y, r:10, style:`fill:var(${i % 2 ? "--teal" : "--ok"});stroke:var(--ink);stroke-width:2`}, g)); },
+  key(g){ E("circle", {cx:-20, cy:0, r:12, style:"fill:none;stroke:var(--gold);stroke-width:8"}, g); E("circle", {cx:-20, cy:0, r:12, style:"fill:none;stroke:var(--warn);stroke-width:2"}, g);
+    E("rect", {x:-9, y:-4.5, width:44, height:9, rx:3, style:"fill:var(--gold);stroke:var(--warn);stroke-width:1.5"}, g);
+    E("rect", {x:20, y:3, width:6, height:11, style:"fill:var(--gold);stroke:var(--warn);stroke-width:1.5"}, g); E("rect", {x:29, y:3, width:6, height:8, style:"fill:var(--gold);stroke:var(--warn);stroke-width:1.5"}, g); },
+  hex(g, r = 16){ const pts = [...Array(6)].map((_, i) => `${(r * Math.cos(Math.PI / 3 * i)).toFixed(1)},${(r * Math.sin(Math.PI / 3 * i)).toFixed(1)}`).join(" ");
+    E("polygon", {points:pts, style:"fill:var(--gold);stroke:var(--warn);stroke-width:3"}, g); E("circle", {r:r * .28, style:"fill:#fff;opacity:.55"}, g); },
+  gpcr(g, s = 1){ let d = `M${-30*s} ${-30*s}`; for(let i = 0; i < 7; i++){ const x = (-30 + i * 10) * s; d += i % 2 === 0 ? ` L${x} ${30*s} Q${x+5*s} ${38*s} ${x+10*s} ${30*s}` : ` L${x} ${-30*s} Q${x+5*s} ${-38*s} ${x+10*s} ${-30*s}`; }
+    E("path", {d, style:`fill:none;stroke:var(--violet);stroke-width:${6*s};stroke-linecap:round;stroke-linejoin:round`}, g); },
+  ir(g, s = 1){ E("rect", {x:-10*s, y:-22*s, width:8*s, height:58*s, rx:3, style:"fill:var(--blue)"}, g); E("rect", {x:2*s, y:-22*s, width:8*s, height:58*s, rx:3, style:"fill:var(--blue)"}, g);
+    E("path", {d:`M${-6*s} ${-22*s} L${-20*s} ${-42*s} M${6*s} ${-22*s} L${20*s} ${-42*s}`, style:`stroke:var(--blue);stroke-width:${8*s};stroke-linecap:round`}, g); },
+  glut(g, s = 1){ E("rect", {x:-16*s, y:-24*s, width:11*s, height:48*s, rx:5, style:"fill:var(--teal);stroke:var(--ink);stroke-width:1.5"}, g); E("rect", {x:5*s, y:-24*s, width:11*s, height:48*s, rx:5, style:"fill:var(--teal);stroke:var(--ink);stroke-width:1.5"}, g); },
+  ball(g, label, fill){ E("circle", {r:22, style:`fill:${fill};stroke:var(--ink);stroke-width:2.5`}, g); Tf(label, 0, 6, g, 16, "middle", "fill:#fff"); },
+  pac(g){ E("path", {d:"M0 0 L22 -12 A25 25 0 1 0 22 12 Z", style:"fill:var(--ok);stroke:var(--ink);stroke-width:2.5"}, g); Tf("AC", -5, 6, g, 15, "middle", "fill:#fff"); },
+  camp(g){ [[-12,-8],[12,-8],[0,12]].forEach(([x,y]) => { const h = E("g", {transform:`translate(${x},${y})`}, g); F.hex(h, 11); }); },
+  star(g, label){ const pts = [...Array(10)].map((_, i) => { const r = i % 2 ? 11 : 26, a = Math.PI / 5 * i - Math.PI / 2; return `${(r*Math.cos(a)).toFixed(1)},${(r*Math.sin(a)).toFixed(1)}`; }).join(" ");
+    E("polygon", {points:pts, style:"fill:var(--pink);stroke:var(--ink);stroke-width:2"}, g); Tf(label, 0, 5, g, 11, "middle", "fill:#fff"); },
+  pdots(g){ [[-10,0],[10,0]].forEach(([x,y]) => { E("circle", {cx:x, cy:y, r:11, style:"fill:var(--accent);stroke:var(--ink);stroke-width:1.5"}, g); Tf("P", x, y + 5, g, 13, "middle", "fill:#fff"); }); },
+  blob(g, label, fill){ E("rect", {x:-30, y:-18, width:60, height:36, rx:18, style:`fill:${fill};stroke:var(--ink);stroke-width:2.5`}, g); Tf(label, 0, 6, g, 15, "middle", "fill:#fff"); },
+  fa(g){ E("polyline", {points:"-22,0 -14,-7 -6,0 2,-7 10,0 18,-7", style:"fill:none;stroke:var(--violet);stroke-width:6;stroke-linecap:round;stroke-linejoin:round"}, g); E("circle", {cx:-27, cy:0, r:7, style:"fill:var(--pink);stroke:var(--ink);stroke-width:1.5"}, g); },
+  bubble(g){ E("circle", {r:15, style:"fill:var(--ecm1);stroke:var(--blue);stroke-width:2.5"}, g); E("circle", {cx:-5, cy:-6, r:3, style:"fill:#fff;opacity:.8"}, g); Tf("CO₂", 0, 5, g, 10); },
+  drop(g){ E("path", {d:"M0 -14 Q-11 2 -11 7 Q-11 16 0 16 Q11 16 11 7 Q11 2 0 -14 Z", style:"fill:var(--blue);stroke:var(--ink);stroke-width:1.5"}, g); },
+  rbc(g){ E("ellipse", {rx:18, ry:11, style:"fill:var(--rbc)"}, g); E("ellipse", {rx:9, ry:5, style:"fill:#000;opacity:.12"}, g); }
+};
+function fig(kind, ...args){ const g = E("g", {}, stage); F[kind](g, ...args); return g; }
+function tile(g, color){ E("circle", {r:40, style:`fill:var(--card);stroke:var(${color});stroke-width:4`}, g); }
+
+/* ---------- shell ---------- */
+function toast(msg, kind = ""){ const t = $("toast"); t.textContent = msg; t.className = "toast " + kind; }
+function add(n){ if(levelIdx >= 0 && levelIdx < lvl.length) lvl[levelIdx] += n; score = lvl.reduce((a, b) => a + b, 0); $("pts").textContent = `${score} pts`; }
+function track(){
+  $("track").innerHTML = LEVELS.map((L, i) => `<button class="dot ${i === levelIdx ? "now" : doneSet.has(i) ? "done" : ""}" style="--c:var(${L.color})" data-i="${i}" title="${L.title}" aria-label="Ir al nivel ${i + 1}: ${L.title}">${i + 1}</button>`).join("");
+  $("track").querySelectorAll(".dot").forEach(b => b.onclick = () => go(Number(b.dataset.i)));
+  $("skip").hidden = levelIdx >= LEVELS.length;
+  $("skip").textContent = levelIdx < 0 ? "▶ Ir al nivel 1" : levelIdx === LEVELS.length - 1 ? "⏭ Ver resultado" : "⏭ Saltar nivel";
+}
+function controls(html){ $("controls").innerHTML = html; }
+function newStage(label){ $("view").innerHTML = ""; stage = E("svg", {id:"stage", viewBox:"0 0 800 480", role:"img", "aria-label":label}); $("view").appendChild(stage); stage.addEventListener("pointerup", stageTapForSelection); sel = null; }
+function finish(msg){ doneSet.add(levelIdx); track(); toast(msg, "ok"); controls(`<button class="btn primary big" id="next">${levelIdx < LEVELS.length - 1 ? "Siguiente nivel →" : "Ver resultado 🏆"}</button>`); $("next").onclick = () => go(levelIdx + 1); $("next").focus(); }
+function go(i){ cleanups.forEach(f => f()); cleanups = []; levelIdx = i; if(i < LEVELS.length){ lvl[i] = 0; add(0); } track(); controls("");
+  if(i >= LEVELS.length) return endScreen();
+  const L = LEVELS[i]; $("ltitle").textContent = `${i + 1}. ${L.title}`; $("lgoal").textContent = L.goal; toast(L.hint); L.build(); }
+
+/* ---------- LEVEL 1: lock & key ---------- */
+function level1(){
+  newStage(LEVELS[0].title); scene(232, 34, {nucleus:[40, 470, 95], mitos:[[740, 440, -20], [300, 445, 10]], ribos:[[200, 330], [215, 345], [480, 330], [520, 420], [250, 410]], vesicles:[[500, 450, 10]]});
+  T("fuera de la célula", 790, 28, stage, 13, "end", "fill:var(--blue)"); T("citoplasma", 790, 300, stage, 13, "end", "fill:var(--pink)");
+  const R = {gpcr:{x:170}, ir:{x:400}, glut:{x:630}};
+  const gp = fig("gpcr"); place(gp, 170, 249);
+  const ir = fig("ir"); place(ir, 400, 249);
+  const slot = E("rect", {x:600, y:226, width:60, height:46, rx:10, style:"fill:var(--card);opacity:.6;stroke:var(--accent);stroke-width:2.5;stroke-dasharray:6 5"}, stage);
+  const ves = E("g", {}, stage); E("circle", {r:38, style:"fill:var(--card);stroke:var(--teal);stroke-width:3;stroke-dasharray:6 4"}, ves); F.glut(ves, .75); place(ves, 630, 380);
+  const gl = T("GLUT4", 630, 440, stage, 13, "middle", "fill:var(--teal)");
+  const ligands = [{id:"glp1", to:"gpcr", label:"GLP-1"}, {id:"key", to:"ir", label:"insulina"}, {id:"hex", to:"glut", label:"glucosa"}];
+  const xs = [170, 400, 630].sort(() => Math.random() - .5);
+  let insulinIn = false, doneN = 0;
+  ligands.forEach((L, k) => {
+    const g = E("g", {}, stage); F[L.id](g, L.id === "hex" ? 20 : undefined); T(L.label, 0, 38, g, 13);
+    const home = {x: xs[k], y: 100}; let tries = 0;
+    draggable(g, home, (x, y) => {
+      const hit = Object.keys(R).find(k2 => near(x, y, R[k2].x, 215, 80));
+      if(!hit) return false;
+      if(hit !== L.to){ tries++; toast("No encaja: cada señal tiene su propio receptor.", "no"); return false; }
+      if(L.id === "hex" && !insulinIn){ tries++; toast("🔒 La puerta GLUT4 sigue dentro de la célula. ¿Quién la llama?", "no"); return false; }
+      g.dataset.locked = "1"; g.classList.remove("drag"); add(tries ? 5 : 10);
+      moveTo(g, x, y, R[hit].x, L.id === "hex" ? 200 : 190, 220, () => { burst(R[hit].x, 200); effect(L.id, g); });
+      return true;
+    });
+  });
+  function effect(id, g){
+    if(id === "glp1"){
+      const gs = fig("ball", "Gs", "var(--pink)"); tween(400, k => place(gs, 170, 330, k));
+      later(500, () => { for(let i = 0; i < 8; i++){ const h = fig("hex", 9); const a = Math.random() * Math.PI, r = 50 + Math.random() * 40; moveTo(h, 170, 340, 170 + Math.cos(a) * r * 1.4, 350 + Math.sin(a) * r, 700); }
+        T("AMPc ↑  →  saciedad 🧠", 170, 462, stage, 15, "middle", "fill:var(--violet)"); toast("¡Encajó! El GPCR activa Gs y se dispara el AMPc.", "ok"); next(); });
+    } else if(id === "key"){
+      const p = fig("pdots"); tween(300, k => place(p, 400, 300, k));
+      later(450, () => { toast("La insulina activa la vía PI3K → Akt… ¡y llama a GLUT4!", "ok");
+        moveTo(ves, 630, 380, 630, 249, 900, () => { slot.remove(); ves.firstChild.remove(); gl.remove(); insulinIn = true; burst(630, 249, 10); T("puerta abierta", 630, 296, stage, 12, "middle", "fill:var(--teal)"); next(); }); });
+    } else {
+      later(150, () => moveTo(g, 630, 200, 630, 380, 800, () => { toast("¡La glucosa entró por GLUT4!", "ok"); burst(630, 380, 10); next(); }));
+    }
+  }
+  function next(){ if(++doneN === 3) later(900, () => finish("Cada señal encaja solo en su receptor. Ninguna entra a «derretir» nada.")); }
+}
+
+/* ---------- LEVEL 2: build the cascade ---------- */
+const CASC = [
+  {name:"GLP-1", pieces:[["GPCR", g => F.gpcr(g, .55), "--violet"], ["Gs", g => F.ball(g, "Gs", "var(--pink)"), "--pink"], ["AC", g => F.pac(g), "--ok"], ["AMPc", g => F.camp(g), "--gold"], ["PKA", g => F.star(g, "PKA"), "--accent"]],
+   end:"AMPc → PKA: más insulina y más saciedad"},
+  {name:"insulina", pieces:[["Receptor", g => F.ir(g, .6), "--blue"], ["P", g => F.pdots(g), "--accent"], ["PI3K", g => F.blob(g, "PI3K", "var(--teal)"), "--teal"], ["Akt", g => F.blob(g, "Akt", "var(--violet)"), "--violet"], ["GLUT4", g => F.glut(g, .8), "--teal"]],
+   end:"PI3K → Akt → GLUT4 sube a la membrana"}
+];
+function level2(round = 0){
+  newStage(LEVELS[1].title); scene(30, 30, {mitos:[[60, 450, 15], [745, 120, -25]], ribos:[[700, 300], [715, 315], [90, 300], [60, 140], [380, 450], [400, 460]], vesicles:[[740, 440, 12], [30, 220, 9]]});
+  const C = CASC[round]; const SX = [100, 250, 400, 550, 700], SY = 190;
+  T(round === 0 ? "Cascada del GLP-1" : "Cascada de la insulina", 400, 108, stage, 22, "middle", `fill:var(${round === 0 ? "--violet" : "--blue"})`);
+  for(let i = 0; i < 4; i++) E("path", {d:`M${SX[i] + 42} ${SY} L${SX[i + 1] - 46} ${SY}`, style:"stroke:var(--violet);opacity:.5;stroke-width:4;stroke-dasharray:8 6"}, stage);
+  const slots = SX.map((x, i) => { const c = E("circle", {cx:x, cy:SY, r:42, style:"fill:var(--card);opacity:.7;stroke:var(--violet);stroke-width:3;stroke-dasharray:6 5"}, stage); T(String(i + 1), x, SY + 70, stage, 16, "middle", "fill:var(--violet)"); return c; });
+  let placed = 0, mistakes = 0;
+  const order = [0,1,2,3,4].sort(() => Math.random() - .5);
+  order.forEach((pi, k) => {
+    const [label, draw, col] = C.pieces[pi]; const g = E("g", {}, stage); tile(g, col);
+    const inner = E("g", {}, g); draw(inner); T(label, 0, 58, g, 14);
+    const home = {x: 100 + k * 150, y: 375};
+    draggable(g, home, (x, y) => {
+      const si = SX.findIndex(sx => near(x, y, sx, SY, 60)); if(si < 0) return false;
+      if(si !== placed || pi !== placed){ mistakes++; toast(si !== placed ? "Llena las casillas en orden, empezando por la 1." : "Esa pieza va más adelante. ¿Qué pasa antes?", "no"); return false; }
+      g.dataset.locked = "1"; g.classList.remove("drag"); moveTo(g, x, y, SX[si], SY, 180, () => burst(SX[si], SY, 8)); slots[si].setAttribute("style", "fill:var(--t-ok);stroke:var(--ok);stroke-width:3");
+      placed++; toast(`¡Bien! ${placed} de 5.`, "ok");
+      if(placed === 5){ add(Math.max(5, 25 - 5 * mistakes)); pulse(); }
+      return true;
+    });
+  });
+  function pulse(){ const sp = E("circle", {r:14, style:"fill:var(--pink);opacity:.9"}, stage);
+    let i = 0; (function hop(){ if(i >= 4){ sp.remove(); burst(SX[4], SY, 16); toast(C.end, "ok"); later(900, () => round === 0 ? level2(1) : finish("La señal viaja paso a paso: el péptido nunca entra a quemar grasa.")); return; }
+      const a = SX[i], b = SX[i + 1]; i++; tween(380, k => { sp.setAttribute("cx", a + (b - a) * k); sp.setAttribute("cy", SY); }, hop); })(); }
+}
+
+/* ---------- LEVEL 3: catch the glucose (arcade) ---------- */
+function level3(){
+  newStage(LEVELS[2].title); defs();
+  E("rect", {x:0, y:0, width:800, height:390, style:"fill:var(--blood)"}, stage);
+  E("rect", {x:0, y:408, width:800, height:72, style:"fill:url(#g-cyto)"}, stage);
+  const rbcs = [...Array(7)].map(() => { const r = fig("rbc"); r.classList.add("deco"); r.setAttribute("opacity", .45); return {g:r, x:rnd(20, 780), y:rnd(40, 340), s:rnd(.2, .5)}; });
+  rbcs.forEach(o => place(o.g, o.x, o.y));
+  T("sangre", 18, 36, stage, 14, "start", "fill:var(--rbc)");
+  membrane(380, 34);
+  // HUD inside the cell
+  const bat = E("g", {}, stage); E("rect", {x:-26, y:-14, width:52, height:28, rx:6, style:"fill:var(--card);stroke:var(--ink);stroke-width:2.5"}, bat); E("rect", {x:26, y:-6, width:5, height:12, style:"fill:var(--ink)"}, bat); place(bat, 70, 446);
+  const batCells = [0,1].map(i => E("rect", {x:-21 + i * 22, y:-9, width:19, height:18, rx:3, style:"fill:var(--line)"}, bat));
+  T("ATP", 70, 474, stage, 11, "middle", "fill:var(--ok)");
+  const ros = [...Array(12)].map((_, i) => { const g = E("g", {opacity:.25}, stage); const x = 160 + i * 34;
+    [[0,0],[6,-5],[-6,-5],[6,5],[-6,5]].forEach(([a, b]) => E("circle", {cx:x + a, cy:446 + b, r:5, style:"fill:var(--teal);stroke:var(--ok);stroke-width:1"}, g)); return g; });
+  T("glucógeno (despensa)", 347, 474, stage, 11, "middle", "fill:var(--teal)");
+  const fat = E("circle", {cx:700, cy:444, r:4, style:"fill:url(#g-fat);stroke:var(--warn);stroke-width:2.5"}, stage);
+  T("grasa", 700, 474, stage, 11, "middle", "fill:var(--warn)");
+  // timer + glucemia meter
+  E("rect", {x:0, y:0, width:800, height:8, style:"fill:var(--line)"}, stage);
+  const timer = E("rect", {x:0, y:0, width:800, height:8, style:"fill:var(--violet)"}, stage);
+  E("rect", {x:770, y:40, width:16, height:300, rx:8, style:"fill:var(--card);opacity:.75"}, stage);
+  const meter = E("rect", {x:770, y:340, width:16, height:0, rx:8, style:"fill:var(--accent)"}, stage);
+  T("glucemia", 778, 30, stage, 11, "middle", "fill:var(--accent)");
+  // the GLUT4 catcher on the membrane
+  const door = E("g", {}, stage);
+  const glow = E("ellipse", {rx:44, ry:30, style:"fill:var(--teal);opacity:.18"}, door);
+  const d1 = E("g", {}, door); F.glut(d1, 1); const d2 = E("g", {opacity:0}, door); F.glut(d2, 1);
+  let doorX = 400, targetX = 400, powerUntil = 0, running = false, over = false;
+  place(door, doorX, 397);
+  const bigTxt = T("Mueve la puerta GLUT4 ⟷", 400, 200, stage, 26, "middle", "fill:var(--violet)");
+  const setTarget = e => { if(!running) return; targetX = Math.max(50, Math.min(740, svgP(e).x)); };
+  stage.addEventListener("pointermove", setTarget); stage.addEventListener("pointerdown", setTarget);
+  const key = e => { if(!running) return; if(e.key === "ArrowLeft"){ targetX = Math.max(50, targetX - 60); e.preventDefault(); } if(e.key === "ArrowRight"){ targetX = Math.min(740, targetX + 60); e.preventDefault(); } };
+  document.addEventListener("keydown", key); cleanups.push(() => document.removeEventListener("keydown", key));
+  let items = [], caught = 0, missed = 0, stored = 0, fatN = 0, spawnG = 0, spawnK = 2500, timeLeft = 35000, last = 0;
+  function spawn(kind){ const g = kind === "key" ? fig("key") : fig("hex", 15); const it = {g, kind, x:rnd(60, 730), y:-20, v:kind === "key" ? 120 : rnd(130, 210), r:kind === "key" ? 0 : rnd(-1, 1)}; items.push(it); place(g, it.x, it.y); }
+  function store(){ if(stored < 2) batCells[stored].setAttribute("style", "fill:var(--ok)");
+    else if(stored < 14) ros[stored - 2].setAttribute("opacity", 1);
+    else { fatN++; fat.setAttribute("r", Math.min(28, 6 + fatN * 2.5)); if(fatN === 1) toast("La despensa de glucógeno se llenó: el exceso empieza a guardarse como grasa 🟡", "no"); }
+    stored++; }
+  function tick(t){
+    if(!running) return; const dt = Math.min(50, t - (last || t)); last = t;
+    timeLeft -= dt; timer.setAttribute("width", Math.max(0, 800 * timeLeft / 35000));
+    rbcs.forEach(o => { o.x = o.x > 790 ? 10 : o.x + o.s; place(o.g, o.x, o.y, 1, o.x / 6); });
+    doorX += (targetX - doorX) * Math.min(1, dt / 70); place(door, doorX, 397);
+    const powered = t < powerUntil; d1.setAttribute("transform", powered ? "translate(-38,0)" : ""); d2.setAttribute("transform", "translate(38,0)"); d2.setAttribute("opacity", powered ? 1 : 0);
+    glow.setAttribute("rx", powered ? 84 : 44);
+    const half = powered ? 72 : 34;
+    spawnG -= dt; spawnK -= dt;
+    if(spawnG <= 0){ spawn("glu"); spawnG = 620; }
+    if(spawnK <= 0){ spawn("key"); spawnK = rnd(5500, 7500); }
+    items = items.filter(it => {
+      it.y += it.v * dt / 1000; place(it.g, it.x, it.y, 1, it.y * it.r);
+      if(it.y >= 368 && it.y < 400 && Math.abs(it.x - doorX) <= half){
+        if(it.kind === "key"){ powerUntil = t + 6000; burst(it.x, 370, 12); toast("🔑 ¡Insulina! Llegan más GLUT4 a la membrana: atrapas el doble", "ok"); it.g.remove(); return false; }
+        caught++; if(lvl[2] < 40) add(2); burst(it.x, 380, 5); const g = it.g; moveTo(g, it.x, 380, it.x, 440, 300, () => g.remove()); store(); return false; }
+      if(it.y >= 400){ if(it.kind !== "key"){ missed++; meter.setAttribute("height", Math.min(300, missed * 15)); meter.setAttribute("y", 340 - Math.min(300, missed * 15)); } it.g.remove(); return false; }
+      return true; });
+    if(timeLeft <= 0) return end();
+    requestAnimationFrame(tick);
+  }
+  function end(){ running = false; over = true; items.forEach(it => it.g.remove()); items = [];
+    const atp = Math.min(2, stored), gly = Math.max(0, Math.min(12, stored - 2));
+    finish(`Atrapaste ${caught} glucosas: ${atp} a ATP, ${gly} a glucógeno${fatN ? ` y ${fatN} a grasa, porque la despensa ya estaba llena` : ""}. La insulina trae más GLUT4 y saca la glucosa de la sangre: eso es homeostasis.`); }
+  cleanups.push(() => { running = false; });
+  controls(`<button class="btn primary big" id="play">▶ ¡Comenzar! (35 s)</button><span style="font-weight:700;color:var(--muted)">Mueve el dedo o el mouse · en teclado ⬅ ➡</span>`);
+  $("play").onclick = () => { bigTxt.remove(); controls(`<span style="font-weight:800;color:var(--violet)">¡Atrapa la glucosa! 🔑 = más GLUT4</span>`); running = true; last = 0; requestAnimationFrame(tick); };
+}
+
+/* ---------- LEVEL 4: lipolysis → mitochondria → you breathe it out ---------- */
+function level4(){
+  newStage(LEVELS[3].title); defs();
+  E("rect", {x:0, y:0, width:800, height:480, style:"fill:url(#g-cyto)"}, stage);
+  organelles({ribos:[[320, 450], [334, 458], [560, 455]], vesicles:[[600, 450, 9]]});
+  floaters(20, 470, 8);
+  E("path", {d:"M40 300 Q30 200 120 185 Q220 175 245 260 Q265 350 190 395 Q100 430 55 370 Q38 340 40 300 Z", style:"fill:var(--card);stroke:var(--head1);stroke-width:6"}, stage);
+  const droplet = E("ellipse", {cx:145, cy:295, rx:82, ry:77, style:"fill:url(#g-fat);stroke:var(--warn);stroke-width:3"}, stage);
+  E("ellipse", {cx:58, cy:330, rx:13, ry:28, transform:"rotate(-15 58 330)", style:"fill:url(#g-nuc);stroke:var(--violet);stroke-width:2"}, stage);
+  T("adipocito", 145, 452, stage, 14, "middle", "fill:var(--warn)");
+  // blood vessel carrying CO2 to the lungs
+  const VP = [[560, 300], [690, 300], [700, 205]];
+  E("path", {d:`M${VP[0][0]} ${VP[0][1]} Q${VP[1][0]} ${VP[1][1]} ${VP[2][0]} ${VP[2][1]}`, style:"fill:none;stroke:var(--rbc);stroke-width:14;opacity:.25;stroke-linecap:round"}, stage);
+  T("sangre", 655, 325, stage, 12, "middle", "fill:var(--rbc)");
+  const mito = E("g", {}, stage); const mOuter = E("ellipse", {rx:100, ry:62, style:"fill:url(#g-mito);stroke:var(--accent);stroke-width:4"}, mito);
+  E("path", {d:"M-78 0 Q-64 -38 -48 0 Q-32 38 -16 0 Q0 -38 16 0 Q32 38 48 0 Q64 -38 78 0", style:"fill:none;stroke:var(--accent);stroke-width:4;opacity:.6"}, mito);
+  const krebs = E("g", {opacity:0}, mito); E("circle", {r:24, style:"fill:var(--card);stroke:var(--violet);stroke-width:4;stroke-dasharray:10 6"}, krebs);
+  E("path", {d:"M18 -18 l8 -2 l-2 8", style:"fill:none;stroke:var(--violet);stroke-width:3"}, krebs); Tf("Krebs", 0, 4, krebs, 10, "middle", "fill:var(--violet)");
+  place(mito, 460, 300);
+  T("mitocondria", 460, 392, stage, 14, "middle", "fill:var(--accent)");
+  const lungs = E("g", {}, stage);
+  E("path", {d:"M0 -55 L0 -18 M0 -18 L-14 -4 M0 -18 L14 -4", style:"stroke:var(--rbc);stroke-width:7;stroke-linecap:round;fill:none"}, lungs);
+  E("path", {d:"M-10 -12 Q-44 -34 -58 10 Q-64 54 -30 58 Q-10 58 -10 30 Z M10 -12 Q44 -34 58 10 Q64 54 30 58 Q10 58 10 30 Z", style:"fill:var(--blood);stroke:var(--rbc);stroke-width:3"}, lungs);
+  let puff = 0; loop(t => { const s = 1 + Math.sin(t / 700) * .04 + puff; puff *= .9; place(lungs, 700, 140, s); }); place(lungs, 700, 140);
+  T("pulmones", 700, 220, stage, 13, "middle", "fill:var(--rbc)");
+  const cup = E("g", {}, stage); E("path", {d:"M-32 -24 L32 -24 L26 32 L-26 32 Z", style:"fill:var(--ecm1);stroke:var(--blue);stroke-width:3"}, cup);
+  const water = E("rect", {x:-27, y:30, width:54, height:0, style:"fill:var(--blue);opacity:.8"}, cup); place(cup, 700, 415);
+  T("agua", 700, 467, stage, 13, "middle", "fill:var(--blue)");
+  const lab = T("1) Arrastra la lipasa a la gota de grasa", 330, 46, stage, 16, "middle", "fill:var(--violet)");
+  const atpTxt = T("", 460, 210, stage, 15, "middle", "fill:var(--ok)");
+  let co2 = 0, h2o = 0, atp = 0, burned = 0, done = false;
+  const bez = (k) => { const [a, b, c] = VP, u = 1 - k; return [u*u*a[0] + 2*u*k*b[0] + k*k*c[0], u*u*a[1] + 2*u*k*b[1] + k*k*c[1]]; };
+  // phase A: lipase
+  const lip = E("g", {}, stage); E("path", {d:"M0 0 L24 -13 A27 27 0 1 0 24 13 Z", style:"fill:var(--pink);stroke:var(--ink);stroke-width:2.5"}, lip); T("lipasa", -2, 44, lip, 13);
+  draggable(lip, {x:330, y:110}, (x, y) => { if(!near(x, y, 145, 295, 95)) return false;
+    lip.dataset.locked = "1"; lip.classList.remove("drag"); moveTo(lip, x, y, 215, 260, 220, () => {
+      tween(700, k => lip.setAttribute("transform", `translate(215,260) rotate(${Math.sin(k * 25) * 20})`), () => { lip.remove(); release(); }); });
+    return true; });
+  function release(){ burst(145, 295, 14); droplet.setAttribute("rx", 72); droplet.setAttribute("ry", 68);
+    const gly = E("g", {}, stage); E("polygon", {points:"0,-9 9,7 -9,7", style:"fill:var(--teal);stroke:var(--ink);stroke-width:1.5"}, gly); T("glicerol", 0, 24, gly, 11, "middle", "fill:var(--teal)");
+    moveTo(gly, 145, 295, 640, 300, 1400, () => gly.remove());
+    toast("✂️ Lipólisis: la lipasa rompe los triglicéridos en ácidos grasos y glicerol.", "ok"); lab.textContent = "2) Lleva los ácidos grasos a la mitocondria";
+    const homes = [[262, 230], [282, 275], [282, 322], [262, 365], [230, 400], [300, 200]];
+    homes.forEach(([hx, hy], i) => { const g = E("g", {}, stage); F.fa(g); tween(400 + i * 80, k => place(g, 145 + (hx - 145) * k, 295 + (hy - 295) * k));
+      later(500 + i * 80, () => draggable(g, {x:hx, y:hy}, (px, py) => { if(!near(px, py, 460, 300, 115)) return false;
+        g.dataset.locked = "1"; g.classList.remove("drag"); moveTo(g, px, py, 460, 300, 200, () => { g.remove(); burn(); }); return true; })); }); }
+  function burn(){ burned++; const n = burned;
+    droplet.setAttribute("rx", Math.max(16, 72 - n * 10)); droplet.setAttribute("ry", Math.max(15, 68 - n * 9));
+    // β-oxidation: chain chopped into acetyl pieces that feed the Krebs wheel
+    for(let i = 0; i < 3; i++){ const a = E("circle", {r:7, style:"fill:var(--warn);stroke:var(--ink);stroke-width:1.5"}, stage); moveTo(a, 400 + i * 20, 285, 460, 300, 450 + i * 120, () => a.remove()); }
+    krebs.setAttribute("opacity", 1); tween(1100, k => krebs.setAttribute("transform", `rotate(${k * 360})`));
+    mOuter.setAttribute("style", "fill:var(--gold);stroke:var(--accent);stroke-width:5"); later(350, () => mOuter.setAttribute("style", "fill:url(#g-mito);stroke:var(--accent);stroke-width:4"));
+    for(let i = 0; i < 3; i++) later(300 + i * 150, () => { const c = E("g", {}, stage); E("circle", {r:12, style:"fill:var(--gold);stroke:var(--warn);stroke-width:2"}, c); Tf("ATP", 0, 4, c, 8);
+      const sx = 420 + i * 40; tween(800, k => { place(c, sx, 260 - k * 60); c.setAttribute("opacity", 1 - k * k); }, () => c.remove()); atp++; atpTxt.textContent = `⚡ ATP × ${atp}`; });
+    for(let i = 0; i < 5; i++) later(600 + i * 160, () => { const b = fig("bubble");
+      tween(1100, k => { const [x, y] = bez(k); place(b, x, y + Math.sin(k * 12) * 4); }, () => {
+        puff = .12; tween(600, k => { place(b, 700 + Math.sin(k * 6) * 6, 90 - k * 70); b.setAttribute("opacity", 1 - k); }, () => { b.remove(); co2++; upd(); }); }); });
+    later(800, () => { const d = fig("drop"); moveTo(d, 480, 340, 700, 395, 900, () => { d.remove(); h2o++; upd(); }); }); }
+  function upd(){ lab.textContent = `Exhalado: CO₂ × ${co2}  ·  agua × ${h2o}`; water.setAttribute("y", 30 - h2o * 9); water.setAttribute("height", h2o * 9);
+    if(co2 + h2o === 36 && !done){ done = true; add(30); donut(); } }
+  function donut(){ const g = E("g", {}, stage); place(g, 330, 140); const R = 42, C = 2 * Math.PI * R;
+    E("circle", {r:R, style:"fill:none;stroke:var(--blue);stroke-width:18;opacity:.25"}, g);
+    const arc = E("circle", {r:R, transform:"rotate(-90)", style:`fill:none;stroke:var(--blue);stroke-width:18;stroke-dasharray:0 ${C}`}, g);
+    tween(1200, k => arc.setAttribute("style", `fill:none;stroke:var(--blue);stroke-width:18;stroke-dasharray:${C * .84 * k} ${C}`));
+    T("84 %", 0, 2, g, 20, "middle", "fill:var(--blue)"); T("CO₂", 0, 20, g, 11, "middle", "fill:var(--blue)");
+    T("16 % agua", 0, R + 32, g, 13, "middle", "fill:var(--teal)");
+    lab.textContent = "La grasa sale sobre todo al respirar"; burst(700, 80, 16);
+    later(1300, () => finish("La lipasa libera la grasa, la mitocondria la oxida (ATP) y tú exhalas el 84 % como CO₂.")); }
+}
+
+/* ---------- LEVEL 5: swipe myth or reality ---------- */
+const CARDS = [
+  {art:"💉➡️🫙", say:"La inyección vacía las células de grasa", real:false, why:"Actúa en el cerebro y el estómago: baja el hambre.", bg:["#DDF4E4","#F2F8D6"]},
+  {art:"🔑🚪", say:"La insulina abre puertas para la glucosa", real:true, why:"Lleva GLUT4 a la membrana.", bg:["#D3F0EA","#E6F6D2"]},
+  {art:"✂️🧬", say:"La enzima DPP-4 corta el GLP-1 en minutos", real:true, why:"Por eso la semaglutida va «blindada».", bg:["#E4F5D8","#D6EFE6"]},
+  {art:"🌙🍝", say:"La pasta de noche se vuelve grasa directo", real:false, why:"Primero va a energía y glucógeno.", bg:["#DCEFE3","#F6F2D2"]},
+  {art:"🌬️", say:"La grasa que pierdes sale al respirar", real:true, why:"≈ 84 % sale como CO₂.", bg:["#D2EFE8","#E9F8DF"]},
+  {art:"💪", say:"Con GLP-1 solo pierdes grasa, nunca músculo", real:false, why:"En STEP 1 también bajó la masa magra.", bg:["#E9F6D6","#D9F1E2"]},
+  {art:"♻️", say:"El receptor se recicla por endocitosis", real:true, why:"Así la célula apaga y regula la señal.", bg:["#D6F2E0","#E2F4F0"]},
+  {art:"📢", say:"«Derrite sin esfuerzo» es evidencia científica", real:false, why:"La evidencia son ensayos controlados.", bg:["#EEF6D4","#D8EFE4"]}
+];
+function level5(){
+  $("view").innerHTML = `<div class="card-zone" id="zone"><span class="side sideL">⬅ MITO</span><span class="side sideR">REALIDAD ➡</span><span class="cnt" id="cn"></span><div id="deck"></div></div>`; stage = null;
+  controls("");
+  let i = 0, lock = false, cur = null;
+  const key = e => { if(!cur || lock) return; if(e.key === "ArrowLeft") answer(false, cur); if(e.key === "ArrowRight") answer(true, cur); };
+  document.addEventListener("keydown", key); cleanups.push(() => document.removeEventListener("keydown", key));
+  function show(){ if(i >= CARDS.length){ cur = null; return finish("¡Ya distingues ciencia de publicidad!"); }
+    const c = CARDS[i]; $("cn").textContent = `${i + 1} / ${CARDS.length}`;
+    const d = document.createElement("div"); d.className = "mcard"; d.style.background = `linear-gradient(150deg, ${c.bg[0]}, ${c.bg[1]})`;
+    d.innerHTML = `<span class="badge b-myth">MITO</span><span class="badge b-real">REALIDAD</span><div class="art" aria-hidden="true">${c.art}</div><div class="say">${c.say}</div>`;
+    $("deck").innerHTML = ""; $("deck").appendChild(d); lock = false; cur = d;
+    let sx = null, dx = 0;
+    d.addEventListener("pointerdown", e => { d.setPointerCapture(e.pointerId); sx = e.clientX; d.style.transition = "none"; });
+    d.addEventListener("pointermove", e => { if(sx === null) return; dx = e.clientX - sx; d.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+      d.querySelector(".b-myth").style.opacity = Math.min(1, -dx / 80); d.querySelector(".b-real").style.opacity = Math.min(1, dx / 80); });
+    const up = () => { if(sx === null) return; sx = null; d.style.transition = ""; if(Math.abs(dx) > 90) answer(dx > 0, d); else { d.style.transform = ""; d.querySelectorAll(".badge").forEach(b => b.style.opacity = 0); } dx = 0; };
+    d.addEventListener("pointerup", up); d.addEventListener("pointercancel", up); }
+  function answer(saysReal, d){ if(lock) return; lock = true; const c = CARDS[i], ok = saysReal === c.real; if(ok) add(10);
+    d.querySelector(saysReal ? ".b-real" : ".b-myth").style.opacity = 1; d.style.transform = `translateX(${saysReal ? 600 : -600}px) rotate(${saysReal ? 25 : -25}deg)`;
+    toast(`${ok ? "✔️ ¡Bien!" : "✖️ Ups."} ${c.real ? "Realidad" : "Mito"}: ${c.why}`, ok ? "ok" : "no"); i++; later(650, show); }
+  show();
+}
+
+function endScreen(){
+  $("ltitle").textContent = "Resultado"; $("lgoal").textContent = ""; toast("");
+  const max = 230, p = score / max;
+  const rank = p >= .85 ? "🏆 Maestro de la señalización" : p >= .6 ? "⚡ Segundo mensajero" : p >= .35 ? "🔑 Receptor en entrenamiento" : "🧪 Ligando novato";
+  let best = score; try{ best = Math.max(score, Number(localStorage.getItem("lab-senales-best2") || 0)); localStorage.setItem("lab-senales-best2", String(best)); }catch(e){}
+  $("view").innerHTML = `<div class="end"><svg id="stage" viewBox="0 0 800 120" style="width:100%;max-width:560px" aria-hidden="true"></svg><div class="score">${score} / ${max}</div><div class="rank">${rank}</div>
+    <div class="idea">Las hormonas no derriten ni engordan: envían señales. La grasa responde al balance de energía.</div>
+    <div style="color:var(--muted);font-weight:700">Mejor marca en este navegador: ${best} pts</div></div>`;
+  stage = $("stage"); defs(); membrane(44, 34);
+  [[150, 61, "gpcr"], [400, 61, "ir"], [650, 61, "glut"]].forEach(([x, y, k]) => { const g = fig(k); place(g, x, y); });
+  later(100, () => { burst(150, 30, 12); burst(400, 30, 12); burst(650, 30, 12); });
+  controls(`<button class="btn primary big" id="again">🔁 Jugar otra vez</button>`);
+  $("again").onclick = () => { lvl = lvl.map(() => 0); doneSet.clear(); go(0); };
+}
+
+const LEVELS = [
+  {title:"Llave y cerradura", goal:"Arrastra cada señal a su receptor", color:"--violet", hint:"👆 Arrastra (o toca y luego toca el destino) el GLP-1, la insulina y la glucosa.", build:level1},
+  {title:"Arma la cascada", goal:"Pon las piezas en orden 1 → 5", color:"--pink", hint:"👆 Arrastra las piezas a las casillas, empezando por la 1.", build:() => level2(0)},
+  {title:"Atrapa la glucosa", goal:"Mueve GLUT4 y guarda la glucosa", color:"--teal", hint:"⟷ Mueve la puerta GLUT4 para atrapar la glucosa que cae. La 🔑 insulina trae más puertas.", build:level3},
+  {title:"La grasa se va respirando", goal:"De la gota de grasa a tu respiración", color:"--warn", hint:"👆 Arrastra la lipasa a la gota y luego los ácidos grasos a la mitocondria.", build:level4},
+  {title:"¿Mito o realidad?", goal:"Desliza ⬅️ mito · realidad ➡️", color:"--blue", hint:"👉 Arrastra la tarjeta: a la izquierda si es mito, a la derecha si es realidad (o usa ⬅ ➡).", build:level5}
+];
+
+function intro(){
+  cleanups.forEach(f => f()); cleanups = [];
+  levelIdx = -1; track(); $("ltitle").textContent = "¿Listo para entrar a la célula?"; $("lgoal").textContent = "5 niveles · ~5 minutos";
+  $("view").innerHTML = `<svg id="stage" viewBox="0 0 800 340" role="img" aria-label="Una célula con receptores en su membrana"></svg>`; stage = $("stage");
+  defs(); E("rect", {x:0, y:0, width:800, height:156, style:"fill:url(#g-ecm)"}, stage); E("rect", {x:0, y:178, width:800, height:162, style:"fill:url(#g-cyto)"}, stage);
+  organelles({nucleus:[90, 340, 90], mitos:[[700, 300, -15], [480, 310, 20]], ribos:[[300, 260], [312, 272], [600, 240], [640, 300]], vesicles:[[380, 300, 10]]});
+  floaters(10, 140, 12); membrane(150, 34);
+  const a = fig("gpcr"); place(a, 220, 167); const b = fig("ir"); place(b, 400, 167); const c = fig("glut"); place(c, 580, 167);
+  const l1 = fig("glp1"); const l2 = fig("key"); const l3 = fig("hex", 20);
+  loop(t => { place(l1, 220, 80 + Math.sin(t / 500) * 6); place(l2, 400, 80 + Math.sin(t / 500 + 1) * 6); place(l3, 580, 80 + Math.sin(t / 500 + 2) * 6); });
+  place(l1, 220, 80); place(l2, 400, 80); place(l3, 580, 80);
+  T("¿Cuál va en cuál?", 400, 250, stage, 24, "middle", "fill:var(--violet)");
+  toast("Arrastra, toca y desliza. ¿Te atascaste? Toca un número de arriba o «Saltar nivel».");
+  controls(`<button class="btn primary big" id="start">▶ Empezar</button>`); $("start").onclick = () => go(0);
+}
+$("skip").onclick = () => go(levelIdx < 0 ? 0 : levelIdx + 1);
+intro();
+</script>
+</body>
+</html>
